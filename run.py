@@ -5,11 +5,13 @@
 """
 import os, sys, getopt, datetime, re, threading, platform, requests
 
-SITES = ['http://www.proxyserverlist24.top/', 'http://www.live-socks.net/']
+# SITES = ['http://www.proxyserverlist24.top/', 'http://www.live-socks.net/']
+SITES = ['http://www.sslproxies24.top']
 HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Win64; x64; Trident/6.0)'}
-TIMEOUT = 5
+TIMEOUT = 10
 SPIDER_PROXIES = None
 IP138 = 'http://2000019.ip138.com/'
+IPDOTCN = 'http://ip.cn'
 
 def echo(color, *args):
     colors = {'error': '\033[91m', 'success': '\033[94m', 'info': '\033[93m'}
@@ -17,24 +19,26 @@ def echo(color, *args):
         print(' '.join(args))
     print(colors[color], ' '.join(args), '\033[0m')
 
-def get_content(url, proxies=None) -> str:
+def get_content(url, proxies=None, headers = HEADERS) -> requests.Response:
     ''' 根据URL和代理获得内容 '''
     echo('info', url)
     try:
-        r = requests.get(url, headers=HEADERS, proxies=proxies, timeout=TIMEOUT)
+        r = requests.get(url, headers=headers, proxies=proxies, timeout=TIMEOUT,allow_redirects=True, ) #允许跟踪连接跳转 针对新添加的ip.cn
         if r.status_code == requests.codes.ok:
-            return r.text
+            return r
         echo('error', '请求失败', str(r.status_code), url)
     except Exception as e:
         echo('error', url, str(e))
-    return ''
+    o = lambda: None
+    o.text = ''
+    return o
 
 def get_proxies_thread(site, proxies):
     ''' 爬取一个站的代理的线程 '''
-    content = get_content(site, SPIDER_PROXIES)
+    content = get_content(site, SPIDER_PROXIES).text
     pages = re.findall(r'<h3[\s\S]*?<a.*?(http.*?\.html).*?</a>', content)
     for page in pages:
-        content = get_content(page, SPIDER_PROXIES)
+        content = get_content(page, SPIDER_PROXIES).text
         proxies += re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', content)
 
 def get_proxies_set() -> list:
@@ -52,13 +56,16 @@ def check_proxies_thread(check_url, proxies, callback):
     ''' 检查代理是否有效的线程 '''
     for proxy in proxies:
         proxy = proxy.strip()
-        proxy = proxy if proxy.startswith('http://') else 'http://' + proxy
-        content = get_content(check_url, proxies={'http': proxy})
-        if content:
+        # proxy = proxy if proxy.startswith('http://') else 'http://' + proxy 可以直接ip地址
+        content = get_content(check_url, proxies={'http': proxy,'https': proxy},headers={'User-Agent': 'curl/7.29.0'})# 检测http 和 https
+        if content.text:
             if check_url == IP138:
                 # 如果能获取到IP，则比对一下IP和代理所用IP一致则判断有效
                 ip = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}', content)
                 if ip and ip[0] in proxy:
+                    callback(proxy)
+            elif check_url == IPDOTCN:
+                if content.text and content.json()['ip'] in proxy:
                     callback(proxy)
             else:
                 callback(proxy)
@@ -78,7 +85,7 @@ def check_and_save_proxies(check_url, proxies, output_file):
         t.join()
 
 if __name__ == '__main__':
-    input_file, output_file, check_url = '', 'proxies.txt', IP138
+    input_file, output_file, check_url = '', 'proxies.txt', IPDOTCN
     if len(sys.argv) > 1:
         try:
             opts, _ = getopt.getopt(sys.argv[1:], 'u:f:o:')
