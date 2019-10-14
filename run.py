@@ -112,6 +112,7 @@ def check_proxies_thread(check_url, proxies, callback):
                     continue
             elif check_url == IPBAIDU:
                 try:
+                    print(content.json())
                     if content.text and content.json()['data'][0]['origip'] is proxy:
                         callback(proxy)
                 except json.decoder.JSONDecodeError as e:
