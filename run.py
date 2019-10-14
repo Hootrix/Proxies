@@ -9,6 +9,8 @@ from lxml import etree
 import tempfile, zipfile
 from requests.packages import urllib3
 
+urllib3.disable_warnings()
+
 # SITES = ['http://www.proxyserverlist24.top/', 'http://www.live-socks.net/']
 SITES = ['http://www.sslproxies24.top']
 HEADERS = {'User-Agent': 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Win64; x64; Trident/6.0)'}
@@ -27,7 +29,7 @@ def get_content(url, proxies=None, headers = HEADERS) -> requests.Response:
     ''' 根据URL和代理获得内容 '''
     echo('info', url)
     try:
-        r = requests.get(url, headers=headers, proxies=proxies, timeout=TIMEOUT,allow_redirects=True, ) #允许跟踪连接跳转 针对新添加的ip.cn
+        r = requests.get(url, headers=headers, proxies=proxies, timeout=TIMEOUT,allow_redirects=True,verify=False ) #允许跟踪连接跳转 针对新添加的ip.cn
         if r.status_code == requests.codes.ok:
             return r
         echo('error', '请求失败', str(r.status_code), url)
@@ -59,7 +61,7 @@ def get_proxies_thread(site, proxies):
 
             assert download_page_url, '未找到zip包下载页面链接'
 
-            download_page_con = requests.get(download_page_url).text#打开zip包下载页面
+            download_page_con = requests.get(download_page_url,verify=False).text#打开zip包下载页面
             zip_url = re.search(r'href="(http[s]?://[^"]+\.zip[^"]*)"', download_page_con, re.I)
             zip_url = zip_url.group(1)#拿到zip下载url
             echo('info', download_page_url, zip_url)
@@ -142,7 +144,6 @@ def read_file_for_zip(zip_url, callback=None):
             #         tmpfile.write(chunk)
             tmpfile = zip_url
         else:  # 进行http请求
-            urllib3.disable_warnings()
             r = requests.get(zip_url, stream=True, verify=False)
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk:
