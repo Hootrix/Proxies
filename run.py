@@ -99,7 +99,7 @@ def check_proxies_thread(check_url, proxies, callback):
                     if content.text and content.json()['ip'] in proxy:
                         callback(proxy)
                 except json.decoder.JSONDecodeError as e:
-                    echo('!!failed!! ', proxy, ' response not json data.') #ip.cn请求的数据为非json
+                    echo('error', proxy, 'ip.cn response not json data.') #ip.cn请求的数据为非json
                     continue
             else:
                 callback(proxy)
