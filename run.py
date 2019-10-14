@@ -4,7 +4,7 @@
 @author: HJK
 @modifier: Pang
 """
-import os, sys, getopt, datetime, re, threading, platform, requests
+import os, sys, getopt, datetime, re, threading, platform, requests,json
 from lxml import etree
 import tempfile, zipfile
 
@@ -95,8 +95,12 @@ def check_proxies_thread(check_url, proxies, callback):
                 if ip and ip[0] in proxy:
                     callback(proxy)
             elif check_url == IPDOTCN:
-                if content.text and content.json()['ip'] in proxy:
-                    callback(proxy)
+                try:
+                    if content.text and content.json()['ip'] in proxy:
+                        callback(proxy)
+                except json.decoder.JSONDecodeError as e:
+                    echo('!!failed!! ', proxy, ' response not json data.') #ip.cn请求的数据为非json
+                    continue
             else:
                 callback(proxy)
 
