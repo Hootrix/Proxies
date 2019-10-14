@@ -18,6 +18,7 @@ TIMEOUT = 10
 SPIDER_PROXIES = None
 IP138 = 'http://2000019.ip138.com/'
 IPDOTCN = 'http://ip.cn'
+IPBAIDU = 'https://sp0.baidu.com/8aQDcjqpAAV3otqbppnN2DJv/api.php?query=ip&resource_id=6006&format=json'
 
 def echo(color, *args):
     colors = {'error': '\033[91m', 'success': '\033[94m', 'info': '\033[93m'}
@@ -105,6 +106,13 @@ def check_proxies_thread(check_url, proxies, callback):
                 except json.decoder.JSONDecodeError as e:
                     echo('error', proxy, 'ip.cn response not json data.') #ip.cn请求的数据为非json
                     continue
+            elif check_url == IPBAIDU:
+                try:
+                    if content.text and content.json()['data'][0]['origip'] is proxy:
+                        callback(proxy)
+                except json.decoder.JSONDecodeError as e:
+                    echo('error', proxy, 'baidu API  response not json data.') #ip.cn请求的数据为非json
+                    continue
             else:
                 callback(proxy)
 
@@ -158,7 +166,7 @@ def read_file_for_zip(zip_url, callback=None):
 
 
 if __name__ == '__main__':
-    input_file, output_file, check_url = '', 'proxies.txt', IPDOTCN
+    input_file, output_file, check_url = '', 'proxies.txt', IPBAIDU
     if len(sys.argv) > 1:
         try:
             opts, _ = getopt.getopt(sys.argv[1:], 'u:f:o:')
