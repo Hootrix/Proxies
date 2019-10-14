@@ -30,7 +30,11 @@ def get_content(url, proxies=None, headers = HEADERS) -> requests.Response:
     ''' 根据URL和代理获得内容 '''
     echo('info', url)
     try:
-        r = requests.get(url, headers=headers, proxies=proxies, timeout=TIMEOUT,allow_redirects=True,verify=False ) #允许跟踪连接跳转 针对新添加的ip.cn
+        s = requests.session()
+        s.keep_alive = False
+        requests.adapters.DEFAULT_RETRIES = 5
+
+        r = s.get(url, headers=headers, proxies=proxies, timeout=TIMEOUT,allow_redirects=True,verify=False ) #允许跟踪连接跳转 针对新添加的ip.cn
         if r.status_code == requests.codes.ok:
             return r
         echo('error', '请求失败', str(r.status_code), url)
