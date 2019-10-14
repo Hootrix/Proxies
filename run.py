@@ -2,8 +2,11 @@
 #-*- coding:utf-8 -*-
 """
 @author: HJK
+@modifier: Pang
 """
 import os, sys, getopt, datetime, re, threading, platform, requests
+from lxml import etree
+import tempfile, zipfile
 
 # SITES = ['http://www.proxyserverlist24.top/', 'http://www.live-socks.net/']
 SITES = ['http://www.sslproxies24.top']
@@ -39,7 +42,34 @@ def get_proxies_thread(site, proxies):
     pages = re.findall(r'<h3[\s\S]*?<a.*?(http.*?\.html).*?</a>', content)
     for page in pages:
         content = get_content(page, SPIDER_PROXIES).text
-        proxies += re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', content)
+        findall_ = re.findall(r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,5}', content)
+        if findall_:
+            proxies += findall_
+        else:#执行下载zip包中代理列表提取
+
+            html = etree.fromstring(content, etree.HTMLParser())
+            a_link = html.xpath('//*[contains(@class,"post-body")]/a')
+            download_page_url = ''
+            for i in a_link:
+                href = i.attrib.get('href')
+                if href and 'zip' in href:  # 存在zip关键字
+                    download_page_url = href
+                    break
+
+            assert download_page_url, '未找到zip包下载页面链接'
+
+            download_page_con = requests.get(download_page_url).text#打开zip包下载页面
+            zip_url = re.search(r'href="(http[s]?://[^"]+\.zip[^"]*)"', download_page_con, re.I)
+            zip_url = zip_url.group(1)#拿到zip下载url
+            def get_file(filename,context):
+                nonlocal proxies
+                if filename.endswith('.txt'):
+                    proxy_list = context.read(filename).decode('utf-8').split('\n')
+                    proxies += proxy_list
+                    # print( context.read(filename))
+                    return False  # 终止下一个文件的读取
+
+            read_file_for_zip(zip_url,get_file)
 
 def get_proxies_set() -> list:
     ''' 获得所有站的代理并去重 '''
@@ -83,6 +113,41 @@ def check_and_save_proxies(check_url, proxies, output_file):
         t.start()
     for t in checker_pool:
         t.join()
+
+
+def read_file_for_zip(zip_url, callback=None):
+    """
+    读取zip包内的文件
+    @author:Ho
+    :param zip_url:zip路径/url
+    :param callback:读取操作的回调函数 若函数返回false 则不会读取下一个文件
+    :return:
+    """
+    with tempfile.TemporaryFile('w+b') as tmpfile:  # 生成临时文件
+
+        # 判断是否为本地文件
+        if os.path.isfile(zip_url):
+            # 进行本地复制。没必要
+            # with open(zip_url,'rb') as f:
+            #     while True:
+            #         chunk = f.read(1024)
+            #         if not chunk:
+            #             break
+            #         tmpfile.write(chunk)
+            tmpfile = zip_url
+        else:  # 进行http请求
+            r = requests.get(zip_url, stream=True)
+            for chunk in r.iter_content(chunk_size=1024):
+                if chunk:
+                    tmpfile.write(chunk)
+        assert zipfile.is_zipfile(tmpfile), '不是zip文件'
+        zf = zipfile.ZipFile(tmpfile)
+        for name in zf.namelist():  # list e.g. ['Brave Browser.url', 'Express VPN.url', 'ssl.txt', 'What is my IP.url']
+            if callable(callback):
+                # zf.read(name) #读取
+                if callback(name, zf) is False:  # 函数返回false 会终止下一个文件的读取
+                    break
+
 
 if __name__ == '__main__':
     input_file, output_file, check_url = '', 'proxies.txt', IPDOTCN
