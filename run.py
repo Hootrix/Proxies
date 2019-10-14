@@ -7,6 +7,7 @@
 import os, sys, getopt, datetime, re, threading, platform, requests,json
 from lxml import etree
 import tempfile, zipfile
+from requests.packages import urllib3
 
 # SITES = ['http://www.proxyserverlist24.top/', 'http://www.live-socks.net/']
 SITES = ['http://www.sslproxies24.top']
@@ -61,6 +62,7 @@ def get_proxies_thread(site, proxies):
             download_page_con = requests.get(download_page_url).text#打开zip包下载页面
             zip_url = re.search(r'href="(http[s]?://[^"]+\.zip[^"]*)"', download_page_con, re.I)
             zip_url = zip_url.group(1)#拿到zip下载url
+            echo('info', download_page_url, zip_url)
             def get_file(filename,context):
                 nonlocal proxies
                 if filename.endswith('.txt'):
@@ -140,7 +142,8 @@ def read_file_for_zip(zip_url, callback=None):
             #         tmpfile.write(chunk)
             tmpfile = zip_url
         else:  # 进行http请求
-            r = requests.get(zip_url, stream=True)
+            urllib3.disable_warnings()
+            r = requests.get(zip_url, stream=True, verify=False)
             for chunk in r.iter_content(chunk_size=1024):
                 if chunk:
                     tmpfile.write(chunk)
