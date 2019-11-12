@@ -113,7 +113,7 @@ def check_proxies_thread(check_url, proxies, callback):
             elif check_url == IPBAIDU:
                 try:
                     print(content.json())
-                    if content.text and content.json()['data'][0]['origip'] in proxy:
+                    if content.text and content.json()['data'][0]['origip'] is proxy:
                         callback(proxy)
                 except json.decoder.JSONDecodeError as e:
                     echo('error', proxy, 'baidu API  response not json data.') #ip.cn请求的数据为非json
